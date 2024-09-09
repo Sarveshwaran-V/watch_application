@@ -1,4 +1,4 @@
-package com.example.watchapp
+package com.example.myapplication.presentation
 
 import android.Manifest
 import android.content.Intent
@@ -6,11 +6,20 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.myapplication.R
 import com.example.watchapp.services.HealthDataService
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.fitness.Fitness
+import com.google.android.gms.fitness.FitnessOptions
+import com.google.android.gms.fitness.data.DataType
+import com.google.android.gms.fitness.data.Field
+import com.google.android.gms.fitness.request.DataReadRequest
+import com.google.android.gms.tasks.Task
+import missing.namespace.R
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
@@ -18,16 +27,14 @@ class MainActivity : ComponentActivity() {
         private const val REQUEST_CODE = 123
     }
 
-    private lateinit var heartRateInput: EditText
-    private lateinit var spo2Input: EditText
+    private lateinit var heartRateDisplay: TextView
     private lateinit var sendButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main) // Use the generated R class here
+        setContentView(R.layout.activity_main)
 
-        heartRateInput = findViewById(R.id.heartRateInput)
-        spo2Input = findViewById(R.id.spo2Input)
+        heartRateDisplay = findViewById(R.id.heartRateDisplay)
         sendButton = findViewById(R.id.sendButton)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) != PackageManager.PERMISSION_GRANTED) {
@@ -35,14 +42,41 @@ class MainActivity : ComponentActivity() {
         }
 
         sendButton.setOnClickListener {
-            val heartRate = heartRateInput.text.toString().toInt()
-            val spo2 = spo2Input.text.toString().toInt()
+            fetchGoogleFitData()
+        }
+    }
 
-            val intent = Intent(this, HealthDataService::class.java).apply {
-                putExtra("heartRate", heartRate)
-                putExtra("spo2", spo2)
-            }
-            HealthDataService.enqueueWork(this, intent)
+    private fun fetchGoogleFitData() {
+        val fitnessOptions = FitnessOptions.builder()
+            .addDataType(DataType.TYPE_HEART_RATE_BPM, FitnessOptions.ACCESS_READ)
+            .build()
+
+        val account = GoogleSignIn.getLastSignedInAccount(this)
+
+        if (account == null || !GoogleSignIn.hasPermissions(account, fitnessOptions)) {
+            GoogleSignIn.requestPermissions(
+                this,
+                REQUEST_CODE,
+                account,
+                fitnessOptions
+            )
+        } else {
+            val readRequest = DataReadRequest.Builder()
+                .read(DataType.TYPE_HEART_RATE_BPM)
+                .setTimeRange(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1), System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+                .build()
+
+            Fitness.getHistoryClient(this, account)
+                .readData(readRequest)
+                .addOnSuccessListener { response ->
+                    val heartRateData = response.getDataSet(DataType.TYPE_HEART_RATE_BPM)
+                    // Extract heart rate data and update TextView
+                    val heartRate = heartRateData.dataPoints.firstOrNull()?.getValue(Field.FIELD_BPM)?.toString() ?: "No data"
+                    heartRateDisplay.text = heartRate
+                }
+                .addOnFailureListener { e ->
+                    e.printStackTrace()
+                }
         }
     }
 }
