@@ -1,24 +1,21 @@
 package com.example.myapplication.presentation
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build.VERSION_CODES.R
 import android.os.Bundle
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.watchapp.services.HealthDataService
+import com.example.myapplication.R
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessOptions
 import com.google.android.gms.fitness.data.DataType
 import com.google.android.gms.fitness.data.Field
 import com.google.android.gms.fitness.request.DataReadRequest
-import com.google.android.gms.tasks.Task
-import missing.namespace.R
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -57,7 +54,7 @@ class MainActivity : ComponentActivity() {
             GoogleSignIn.requestPermissions(
                 this,
                 REQUEST_CODE,
-                account,
+                account ?: GoogleSignIn.getAccountForExtension(this, fitnessOptions), // Provide a fallback account
                 fitnessOptions
             )
         } else {
